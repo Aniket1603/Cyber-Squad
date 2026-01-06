@@ -661,17 +661,93 @@
     document.getElementById(`${type}-preview`).classList.add('hidden');
     document.getElementById(`${type}-file`).value = '';
   }
+// --- Updated File Analysis Logic ---
 
-  function analyzeContent(type) {
-    if (!selectedFiles[type]) return alert(`Please select a ${type} file.`);
-    const overlay = document.getElementById('scanning-overlay');
-    overlay.classList.remove('hidden');
-    document.getElementById('result-section').classList.add('hidden');
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-      generateResult(type);
-    }, 2500);
+async function analyzeContent(type) {
+  if (!selectedFiles[type]) return alert(`Please select a ${type} file.`);
+  
+  const overlay = document.getElementById('scanning-overlay');
+  overlay.classList.remove('hidden');
+  document.getElementById('result-section').classList.add('hidden');
+
+  // 1. Prepare the file to be sent
+  const formData = new FormData();
+  formData.append('image_file', selectedFiles[type]);
+
+  try {
+    // 2. Call your Python Backend
+    const response = await fetch('/analyze', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) throw new Error("Server error");
+
+    const data = await response.json();
+
+    // 3. Hide overlay and show real results
+    overlay.classList.add('hidden');
+    displayRealResult(type, data);
+
+  } catch (error) {
+    console.error("Error:", error);
+    overlay.classList.add('hidden');
+    alert("Analysis failed. Make sure your Python server is running.");
   }
+}
+
+function displayRealResult(type, data) {
+  const resultSection = document.getElementById('result-section');
+  const isDark = document.documentElement.classList.contains('dark');
+  
+  // Data from Python: data.final_score, data.verdict, data.m_rep, data.t_rep
+  const confidence = data.final_score;
+  const isFake = confidence > 45; // Based on our earlier forensic discussion
+
+  document.getElementById('result-file-info').textContent = 
+    `${type.toUpperCase()} ANALYSIS // ${selectedFiles[type].name}`;
+  
+  // --- Progress Ring Animation ---
+  const circle = document.getElementById('progress-ring');
+  const radius = circle.r.baseVal.value;
+  const circumference = radius * 2 * Math.PI;
+  circle.style.strokeDasharray = `${circumference} ${circumference}`;
+  const offset = circumference - (confidence / 100) * circumference;
+  circle.style.strokeDashoffset = offset;
+
+  // --- Dynamic Colors ---
+  const color = isFake ? '#ef4444' : (isDark ? '#0aff60' : '#10b981');
+  const textColor = isDark ? color : (isFake ? '#dc2626' : '#059669'); 
+  
+  circle.style.color = color;
+  document.getElementById('confidence-score').textContent = `${confidence}%`;
+  document.getElementById('confidence-score').style.color = color;
+
+  // --- Update Verdict Status ---
+  document.getElementById('result-status').innerHTML = `
+    <div class="flex items-center">
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background: ${color}20; border: 1px solid ${color}60">
+        <i class="fas ${isFake ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-lg" style="color: ${color}"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-sm" style="color: ${textColor}">${data.verdict}</h3>
+        <p class="text-[10px] text-slate-500 dark:text-gray-400 font-mono">FORENSIC SCORE: ${confidence}/100</p>
+      </div>
+    </div>
+  `;
+
+  // --- Update Details from Python Model ---
+  document.getElementById('result-details').innerHTML = `
+    <ul class="list-none space-y-2 text-xs text-slate-500 dark:text-gray-400">
+      <li><i class="fas fa-microscope mr-2"></i><b>Metadata:</b> ${data.m_rep}</li>
+      <li><i class="fas fa-wave-square mr-2"></i><b>Texture:</b> ${data.t_rep}</li>
+      <li><i class="fas fa-shield-halved mr-2"></i><b>Status:</b> ${isFake ? 'AI Signature Detected' : 'No Synthesis Found'}</li>
+    </ul>
+  `;
+
+  resultSection.classList.remove('hidden');
+  resultSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
   function generateResult(type) {
     const resultSection = document.getElementById('result-section');
