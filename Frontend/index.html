@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" class=""> <head>
+  <meta charset="UTF-8" />
+  <title>DeepFake | AI Authenticity Defense</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Rajdhani', 'sans-serif'],
+            mono: ['Orbitron', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              black: '#050505',
+              dark: '#0a0f1c',
+              blue: '#00f3ff',
+              purple: '#bc13fe',
+              green: '#0aff60',
+              red: '#ff0a46',
+              textMain: '#1e293b',
+              textSub: '#475569',
+            }
+          },
+          animation: {
+            'spin-slow': 'spin 8s linear infinite',
+            'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'slide-up': 'slideUp 0.4s ease-out forwards',
+            'scan-vertical': 'scanVertical 2s linear infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            scanVertical: {
+              '0%': { top: '0%' },
+              '50%': { top: '100%' },
+              '100%': { top: '0%' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Global Styles */
+    body {
+      background-color: transparent; 
+      transition: color 0.3s ease;
+    }
+
+    /* Fixed Background Layer */
+    #bg-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -20;
+      transition: background 0.5s ease;
+      background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%);
+    }
+    .dark #bg-layer { background: #050505; }
+
+    /* Canvas */
+    #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; pointer-events: none; }
+
+    /* --- PREMIUM IOS GLASSMORPHISM --- */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.4); 
+      backdrop-filter: blur(25px) saturate(180%);
+      -webkit-backdrop-filter: blur(25px) saturate(180%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    }
+    .dark .glass-panel {
+      background: rgba(5, 5, 10, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(25px) saturate(120%);
+      -webkit-backdrop-filter: blur(25px) saturate(120%);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(40px) saturate(150%);
+      -webkit-backdrop-filter: blur(40px) saturate(150%);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .dark .glass-card {
+      background: rgba(15, 20, 35, 0.3);
+      backdrop-filter: blur(40px) saturate(120%);
+      -webkit-backdrop-filter: blur(40px) saturate(120%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+    }
+    .glass-card:hover {
+      transform: translateY(-8px) scale(1.01);
+      border-color: rgba(0, 243, 255, 0.5); 
+      box-shadow: 0 20px 40px -10px rgba(0, 243, 255, 0.15);
+    }
+
+    /* MOCKUP ANIMATIONS */
+    /* Image Grid Scan */
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 2px;
+      opacity: 0.3;
+      transition: opacity 0.3s;
+    }
+    .group:hover .mockup-grid { opacity: 0.6; }
+    .grid-cell { background: currentColor; border-radius: 2px; transition: all 0.3s; }
+    .group:hover .grid-cell:nth-child(7),
+    .group:hover .grid-cell:nth-child(14), 
+    .group:hover .grid-cell:nth-child(22) {
+      background: #ef4444; /* Red for detection */
+      transform: scale(1.2);
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    /* Video Progress Bar */
+    .video-progress { width: 30%; transition: width 1s ease-in-out; }
+    .group:hover .video-progress { width: 85%; }
+    
+    /* Document Lock */
+    .doc-lock { transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .group:hover .doc-lock { transform: scale(1.2) translateY(-10px); color: #10b981; }
+    .doc-line { width: 100%; height: 8px; background: currentColor; opacity: 0.2; border-radius: 4px; margin-bottom: 8px; transition: width 0.3s; }
+    .group:hover .doc-line:nth-child(2) { width: 80%; }
+    .group:hover .doc-line:nth-child(3) { width: 90%; }
+
+    /* Overlay Beam */
+    .scan-beam {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: #00f3ff;
+      box-shadow: 0 0 15px #00f3ff;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .group:hover .scan-beam {
+      opacity: 1;
+      animation: scanVertical 2s linear infinite;
+    }
+
+    /* Nav Active State */
+    .nav-link.active { color: #2563eb; position: relative; }
+    .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px; background: #2563eb; }
+    .dark .nav-link.active { color: #00f3ff; }
+    .dark .nav-link.active::after { background: #00f3ff; }
+    
+    /* Scanning Overlay */
+    .scan-line { position: absolute; width: 100%; height: 2px; background: #00f3ff; box-shadow: 0 0 10px #00f3ff; animation: scan 2s linear infinite; z-index: 50; }
+    .grid-overlay { background-image: linear-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.1) 1px, transparent 1px); background-size: 20px 20px; }
+    @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+    .cursor-blink { animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col font-sans text-cyber-textMain dark:text-gray-200">
+
+<div id="bg-layer"></div>
+<canvas id="bg-canvas"></canvas>
+
+<div id="scanning-overlay" class="fixed inset-0 z-[100] bg-white/80 dark:bg-cyber-black/90 hidden flex flex-col items-center justify-center backdrop-blur-md transition-all duration-300">
+  <div class="absolute inset-0 grid-overlay opacity-20"></div>
+  <div class="relative w-64 h-64 border-2 border-cyber-blue/30 rounded-lg overflow-hidden mb-8 bg-white/50 dark:bg-transparent shadow-xl dark:shadow-none">
+    <div class="scan-line"></div>
+    <div class="absolute inset-0 flex items-center justify-center">
+      <i class="fas fa-fingerprint text-6xl text-cyber-blue animate-pulse"></i>
+    </div>
+  </div>
+  <h2 class="text-2xl font-mono text-cyber-blue mb-2 font-bold drop-shadow-sm">ANALYZING ARTIFACTS</h2>
+  <p class="text-slate-600 dark:text-cyber-blue/60 text-sm animate-pulse font-medium">Running Neural Networks...</p>
+</div>
+
+<div id="auth-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center px-4">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="toggleAuthModal()"></div>
+  <div class="glass-card relative w-full max-w-md p-8 rounded-2xl animate-slide-up bg-white/80 dark:bg-black/60 border border-white/50 dark:border-white/10 shadow-2xl">
+    <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"><i class="fas fa-times text-xl"></i></button>
+    <div class="flex space-x-6 mb-8 border-b border-slate-200 dark:border-white/10 pb-2">
+      <button id="tab-login" onclick="switchAuthTab('login')" class="text-lg font-bold font-mono text-blue-600 dark:text-cyber-blue border-b-2 border-blue-600 dark:border-cyber-blue pb-2 transition-all">LOGIN</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" class="text-lg font-bold font-mono text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 pb-2 transition-all">SIGN UP</button>
+    </div>
+    <form id="form-login" onsubmit="handleLogin(event)" class="space-y-5">
+      <div><label class="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1">Email</label><input type="email" placeholder="user@example.com" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-3 pl-4 text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-cyber-blue transition-colors" required></div>
+      <div><label class="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1">Password</label><input type="password" placeholder="••••••••" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-3 pl-4 text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-cyber-blue transition-colors" required></div>
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-cyber-blue/80 dark:hover:bg-cyber-blue text-white dark:text-black font-bold py-3 rounded-lg shadow-lg">ACCESS DASHBOARD</button>
+    </form>
+    <form id="form-signup" onsubmit="handleLogin(event)" class="space-y-5 hidden">
+      <div><label class="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1">Name</label><input type="text" placeholder="John Doe" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-3 pl-4 text-slate-800 dark:text-white focus:outline-none focus:border-purple-500 dark:focus:border-cyber-purple transition-colors" required></div>
+      <div><label class="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1">Email</label><input type="email" placeholder="user@example.com" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-3 pl-4 text-slate-800 dark:text-white focus:outline-none focus:border-purple-500 dark:focus:border-cyber-purple transition-colors" required></div>
+      <div><label class="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase mb-1">Password</label><input type="password" placeholder="••••••••" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg py-3 pl-4 text-slate-800 dark:text-white focus:outline-none focus:border-purple-500 dark:focus:border-cyber-purple transition-colors" required></div>
+      <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 dark:bg-cyber-purple/80 dark:hover:bg-cyber-purple text-white font-bold py-3 rounded-lg shadow-lg">CREATE ACCOUNT</button>
+    </form>
+  </div>
+</div>
+
+<header class="fixed top-0 w-full z-50 glass-panel transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-6 py-4">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center space-x-3 group cursor-pointer" onclick="navigateTo('home')">
+        <div class="relative w-8 h-8 flex items-center justify-center">
+          <div class="absolute inset-0 bg-blue-500/20 dark:bg-cyber-blue/20 rounded-lg blur-md group-hover:opacity-40 transition-opacity"></div>
+          <div class="relative border border-slate-400/50 dark:border-cyber-blue/50 rounded-lg p-1.5 bg-white/30 dark:bg-black/50 transition-colors backdrop-blur-sm">
+            <i class="fas fa-shield-halved text-blue-600 dark:text-cyber-blue text-sm"></i>
+          </div>
+        </div>
+        <span class="text-xl font-mono font-bold tracking-wider text-slate-800 dark:text-white transition-colors">DEEP<span class="text-blue-600 dark:text-cyber-blue">FAKE</span></span>
+      </div>
+      <nav class="hidden md:flex space-x-8">
+        <button onclick="navigateTo('home')" class="nav-link active text-slate-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-cyber-blue font-bold text-xs transition-all tracking-wide py-1">HOME</button>
+        <button onclick="navigateTo('dashboard')" class="nav-link text-slate-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-cyber-blue font-bold text-xs transition-all tracking-wide py-1">DASHBOARD</button>
+        <button onclick="navigateTo('history')" class="nav-link text-slate-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-cyber-blue font-bold text-xs transition-all tracking-wide py-1">HISTORY</button>
+        <button onclick="navigateTo('help')" class="nav-link text-slate-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-cyber-blue font-bold text-xs transition-all tracking-wide py-1">HELP</button>
+        <button onclick="navigateTo('about')" class="nav-link text-slate-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-cyber-blue font-bold text-xs transition-all tracking-wide py-1">ABOUT</button>
+      </nav>
+      <div class="flex items-center space-x-4">
+        <button onclick="toggleTheme()" class="w-8 h-8 rounded-full bg-white/50 dark:bg-white/10 shadow-sm border border-slate-200 dark:border-transparent flex items-center justify-center text-slate-600 dark:text-yellow-300 hover:bg-white dark:hover:bg-white/20 transition-all focus:outline-none backdrop-blur-sm">
+          <i class="fas fa-sun dark:hidden text-orange-400"></i>
+          <i class="fas fa-moon hidden dark:block"></i>
+        </button>
+        <div id="auth-buttons">
+          <button id="btn-login-trigger" onclick="toggleAuthModal()" class="hidden md:block bg-slate-800 dark:bg-white/5 hover:bg-slate-700 dark:hover:bg-cyber-blue/20 border border-transparent dark:border-white/10 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all backdrop-blur-sm shadow-lg dark:shadow-none"><i class="fas fa-user mr-2 text-blue-400 dark:text-cyber-blue"></i> LOGIN</button>
+          <div id="user-menu" class="hidden flex items-center space-x-3">
+             <div class="text-right hidden lg:block"><p class="text-xs font-bold text-slate-800 dark:text-white">Alex Chen</p><p class="text-[10px] text-slate-500 dark:text-gray-400">Pro Plan</p></div>
+             <button onclick="handleLogout()" class="bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-200 dark:border-red-500/20 transition-all"><i class="fas fa-sign-out-alt mr-1"></i> LOGOUT</button>
+          </div>
+        </div>
+        <button onclick="toggleMobileMenu()" class="md:hidden text-slate-800 dark:text-white"><i class="fas fa-bars text-xl"></i></button>
+      </div>
+    </div>
+    <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 border-t border-slate-200 dark:border-white/10 pt-4 animate-fade-in">
+      <div class="flex flex-col space-y-3">
+        <button onclick="navigateTo('home'); toggleMobileMenu()" class="text-left text-sm font-bold text-slate-700 dark:text-gray-300">HOME</button>
+        <button onclick="navigateTo('dashboard'); toggleMobileMenu()" class="text-left text-sm font-bold text-slate-700 dark:text-gray-300">DASHBOARD</button>
+        <button onclick="navigateTo('history'); toggleMobileMenu()" class="text-left text-sm font-bold text-slate-700 dark:text-gray-300">HISTORY</button>
+        <button onclick="toggleAuthModal(); toggleMobileMenu()" class="text-left text-sm font-bold text-blue-600 dark:text-cyber-blue">LOGIN / SIGNUP</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="flex-grow pt-28 pb-10 px-4 relative z-10">
+
+  <section id="page-home" class="page-section animate-fade-in">
+    <div class="max-w-4xl mx-auto text-center mb-16">
+      <div class="inline-block mb-3 px-2 py-0.5 rounded-full border border-purple-200 dark:border-cyber-purple/30 bg-purple-50/50 dark:bg-cyber-purple/10 backdrop-blur-md shadow-sm">
+        <span class="text-[10px] font-mono text-purple-600 dark:text-cyber-purple tracking-widest uppercase font-bold">● AI Protection Protocol Active</span>
+      </div>
+      <h1 class="text-4xl md:text-6xl font-mono font-black mb-4 leading-tight text-slate-900 dark:text-white transition-colors drop-shadow-md dark:drop-shadow-none">
+        VERIFY <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-cyber-blue dark:via-white dark:to-cyber-purple animate-gradient">REALITY</span>
+      </h1>
+      <p class="text-lg text-slate-600 dark:text-gray-400 mb-1 h-6 font-light tracking-wide font-sans">
+        <span id="typing-text"></span><span class="cursor-blink text-slate-900 dark:text-white">|</span>
+      </p>
+    </div>
+    
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 justify-items-center">
+      <div class="glass-card rounded-2xl p-6 relative overflow-hidden group w-full max-w-[320px]">
+        <div class="absolute inset-0 bg-gradient-to-b from-blue-400/10 dark:from-cyber-blue/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div class="h-full flex flex-col relative z-10 transition-colors duration-300">
+          <div class="w-12 h-12 bg-blue-100/50 dark:bg-cyber-blue/10 rounded-xl flex items-center justify-center mb-4 border border-blue-200 dark:border-cyber-blue/20 backdrop-blur-sm"><i class="fas fa-camera text-xl text-blue-600 dark:text-cyber-blue"></i></div>
+          <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-1 font-mono">Image Scan</h3>
+          <p class="text-xs text-slate-600 dark:text-gray-400 mb-6 h-8 leading-relaxed font-medium">Detect GANs, face-swaps, and diffusion artifacts.</p>
+          <div class="rounded-xl p-6 mb-4 transition-colors cursor-pointer relative border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-cyber-blue/50 bg-white/20 dark:bg-black/20" onclick="document.getElementById('image-file').click()">
+            <div class="text-center"><i class="fas fa-cloud-arrow-up text-2xl text-slate-400 dark:text-gray-500 mb-2"></i><p class="text-xs font-bold text-slate-600 dark:text-gray-300">Drop Image File</p></div>
+            <input type="file" id="image-file" class="hidden" accept="image/*" />
+          </div>
+          <div class="mb-3 hidden" id="image-preview"><div class="flex items-center justify-between bg-blue-50/50 dark:bg-cyber-blue/10 border border-blue-100 dark:border-cyber-blue/20 p-2 rounded-lg backdrop-blur-sm"><span class="text-xs text-slate-700 dark:text-white truncate max-w-[120px]" id="image-name">file.jpg</span><button class="text-red-500 hover:text-red-700 text-xs" onclick="clearFile('image', event)"><i class="fas fa-times"></i></button></div></div>
+          <button class="mt-auto w-full bg-blue-500/10 dark:bg-cyber-blue/10 hover:bg-blue-600 dark:hover:bg-cyber-blue text-blue-700 dark:text-cyber-blue hover:text-white dark:hover:text-black font-mono font-bold py-3 rounded-xl border border-blue-200 dark:border-cyber-blue/50 transition-all flex items-center justify-center text-xs backdrop-blur-sm" onclick="analyzeContent('image')">INITIATE SCAN</button>
+        </div>
+      </div>
+      <div class="glass-card rounded-2xl p-6 relative overflow-hidden group w-full max-w-[320px]">
+        <div class="absolute inset-0 bg-gradient-to-b from-purple-400/10 dark:from-cyber-purple/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div class="h-full flex flex-col relative z-10 transition-colors duration-300">
+          <div class="w-12 h-12 bg-purple-100/50 dark:bg-cyber-purple/10 rounded-xl flex items-center justify-center mb-4 border border-purple-200 dark:border-cyber-purple/20 backdrop-blur-sm"><i class="fas fa-film text-xl text-purple-600 dark:text-cyber-purple"></i></div>
+          <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-1 font-mono">Video Analysis</h3>
+          <p class="text-xs text-slate-600 dark:text-gray-400 mb-6 h-8 leading-relaxed font-medium">Frame-by-frame deepfake detection.</p>
+          <div class="rounded-xl p-6 mb-4 transition-colors cursor-pointer relative border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-purple-400 dark:hover:border-cyber-purple/50 bg-white/20 dark:bg-black/20" onclick="document.getElementById('video-file').click()">
+            <div class="text-center"><i class="fas fa-cloud-arrow-up text-2xl text-slate-400 dark:text-gray-500 mb-2"></i><p class="text-xs font-bold text-slate-600 dark:text-gray-300">Drop Video File</p></div>
+            <input type="file" id="video-file" class="hidden" accept="video/*" />
+          </div>
+          <div class="mb-3 hidden" id="video-preview"><div class="flex items-center justify-between bg-purple-50/50 dark:bg-cyber-purple/10 border border-purple-100 dark:border-cyber-purple/20 p-2 rounded-lg backdrop-blur-sm"><span class="text-xs text-slate-700 dark:text-white truncate max-w-[120px]" id="video-name">file.mp4</span><button class="text-red-500 hover:text-red-700 text-xs" onclick="clearFile('video', event)"><i class="fas fa-times"></i></button></div></div>
+          <button class="mt-auto w-full bg-purple-500/10 dark:bg-cyber-purple/10 hover:bg-purple-600 dark:hover:bg-cyber-purple text-purple-700 dark:text-cyber-purple hover:text-white dark:hover:text-white font-mono font-bold py-3 rounded-xl border border-purple-200 dark:border-cyber-purple/50 transition-all flex items-center justify-center text-xs backdrop-blur-sm" onclick="analyzeContent('video')">INITIATE SCAN</button>
+        </div>
+      </div>
+      <div class="glass-card rounded-2xl p-6 relative overflow-hidden group w-full max-w-[320px]">
+        <div class="absolute inset-0 bg-gradient-to-b from-green-400/10 dark:from-cyber-green/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div class="h-full flex flex-col relative z-10 transition-colors duration-300">
+          <div class="w-12 h-12 bg-green-100/50 dark:bg-cyber-green/10 rounded-xl flex items-center justify-center mb-4 border border-green-200 dark:border-cyber-green/20 backdrop-blur-sm"><i class="fas fa-file-contract text-xl text-green-600 dark:text-cyber-green"></i></div>
+          <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-1 font-mono">Doc Verify</h3>
+          <p class="text-xs text-slate-600 dark:text-gray-400 mb-6 h-8 leading-relaxed font-medium">Identify LLM-generated text and metadata.</p>
+          <div class="rounded-xl p-6 mb-4 transition-colors cursor-pointer relative border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-green-400 dark:hover:border-cyber-green/50 bg-white/20 dark:bg-black/20" onclick="document.getElementById('document-file').click()">
+            <div class="text-center"><i class="fas fa-cloud-arrow-up text-2xl text-slate-400 dark:text-gray-500 mb-2"></i><p class="text-xs font-bold text-slate-600 dark:text-gray-300">Drop Document</p></div>
+            <input type="file" id="document-file" class="hidden" accept=".pdf,.doc,.docx,.txt" />
+          </div>
+          <div class="mb-3 hidden" id="document-preview"><div class="flex items-center justify-between bg-green-50/50 dark:bg-cyber-green/10 border border-green-100 dark:border-cyber-green/20 p-2 rounded-lg backdrop-blur-sm"><span class="text-xs text-slate-700 dark:text-white truncate max-w-[120px]" id="document-name">file.pdf</span><button class="text-red-500 hover:text-red-700 text-xs" onclick="clearFile('document', event)"><i class="fas fa-times"></i></button></div></div>
+          <button class="mt-auto w-full bg-green-500/10 dark:bg-cyber-green/10 hover:bg-green-600 dark:hover:bg-cyber-green text-green-700 dark:text-cyber-green hover:text-white dark:hover:text-black font-mono font-bold py-3 rounded-xl border border-green-200 dark:border-cyber-green/50 transition-all flex items-center justify-center text-xs backdrop-blur-sm" onclick="analyzeContent('document')">INITIATE SCAN</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="max-w-7xl mx-auto px-6 mb-20">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-mono font-bold text-slate-900 dark:text-white mb-4">DETECTION <span class="text-blue-600 dark:text-cyber-blue">CAPABILITIES</span></h2>
+        <p class="text-slate-500 dark:text-gray-400 max-w-2xl mx-auto">Our advanced models analyze multiple layers of media artifacts to ensure the highest accuracy in deepfake detection.</p>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-center gap-10 mb-20 group">
+        <div class="w-full md:w-1/2">
+          <div class="glass-card rounded-2xl p-4 relative h-64 md:h-80 flex items-center justify-center overflow-hidden bg-slate-50/50 dark:bg-black/40">
+             <div class="relative w-40 h-40 border-2 border-slate-300 dark:border-slate-700 rounded-full flex items-center justify-center overflow-hidden bg-white/50 dark:bg-white/5">
+                <i class="fas fa-user text-6xl text-slate-300 dark:text-slate-600"></i>
+                <div class="absolute inset-0 mockup-grid text-slate-400 dark:text-slate-600">
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                  <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+                </div>
+                <div class="scan-beam"></div>
+             </div>
+             <div class="absolute bottom-6 right-6 px-3 py-1 bg-white/80 dark:bg-black/60 backdrop-blur rounded border border-blue-500/30 text-xs font-mono text-blue-500 dark:text-cyber-blue opacity-0 group-hover:opacity-100 transition-opacity">
+               <i class="fas fa-bug mr-2"></i>ARTIFACTS DETECTED
+             </div>
+          </div>
+        </div>
+        <div class="w-full md:w-1/2 space-y-4">
+          <div class="flex items-center space-x-3 mb-2">
+            <div class="p-2 bg-blue-100 dark:bg-cyber-blue/20 rounded-lg text-blue-600 dark:text-cyber-blue"><i class="fas fa-image text-xl"></i></div>
+            <h3 class="text-2xl font-bold font-mono text-slate-800 dark:text-white">Image Forensics</h3>
+          </div>
+          <p class="text-slate-600 dark:text-gray-300 leading-relaxed">
+            Our algorithms analyze pixel-level irregularities and grid artifacts left behind by GANs. Hovering over the image reveals detection heatmaps.
+          </p>
+          <ul class="space-y-2">
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Pixel Grid Analysis</li>
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Error Level Analysis</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:flex-row-reverse items-center gap-10 mb-20 group">
+        <div class="w-full md:w-1/2">
+          <div class="glass-card rounded-2xl p-4 relative h-64 md:h-80 flex items-center justify-center overflow-hidden bg-slate-50/50 dark:bg-black/40">
+             <div class="w-3/4 h-48 bg-slate-800 dark:bg-slate-900 rounded-lg shadow-xl overflow-hidden relative border border-slate-600">
+               <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                 <div class="w-12 h-12 rounded-full border-2 border-white/50 flex items-center justify-center pl-1 text-white"><i class="fas fa-play"></i></div>
+               </div>
+               <div class="absolute bottom-0 left-0 right-0 h-8 bg-black/60 backdrop-blur flex items-center px-4 space-x-3">
+                 <i class="fas fa-play text-xs text-white"></i>
+                 <div class="flex-grow h-1 bg-gray-600 rounded-full overflow-hidden">
+                   <div class="h-full bg-purple-500 video-progress"></div>
+                 </div>
+                 <i class="fas fa-expand text-xs text-white"></i>
+               </div>
+               <div class="absolute top-4 right-4 bg-red-500 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity delay-300 transform group-hover:translate-x-0 translate-x-4">
+                 <i class="fas fa-exclamation-triangle mr-1"></i> DEEPFAKE AT 0:12
+               </div>
+             </div>
+          </div>
+        </div>
+        <div class="w-full md:w-1/2 space-y-4">
+          <div class="flex items-center space-x-3 mb-2">
+            <div class="p-2 bg-purple-100 dark:bg-cyber-purple/20 rounded-lg text-purple-600 dark:text-cyber-purple"><i class="fas fa-video text-xl"></i></div>
+            <h3 class="text-2xl font-bold font-mono text-slate-800 dark:text-white">Video Synthesis</h3>
+          </div>
+          <p class="text-slate-600 dark:text-gray-300 leading-relaxed">
+            We track temporal inconsistencies. The player timeline highlights specific frames where lip-sync or facial landmarks fail.
+          </p>
+          <ul class="space-y-2">
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Temporal Consistency</li>
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Frame-by-Frame Alerting</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-center gap-10 group">
+        <div class="w-full md:w-1/2">
+          <div class="glass-card rounded-2xl p-4 relative h-64 md:h-80 flex items-center justify-center overflow-hidden bg-slate-50/50 dark:bg-black/40">
+             <div class="relative w-48 h-64 bg-white dark:bg-slate-800 shadow-xl rounded p-6 flex flex-col text-slate-300 dark:text-slate-600">
+               <div class="doc-line"></div>
+               <div class="doc-line"></div>
+               <div class="doc-line"></div>
+               <div class="doc-line w-1/2"></div>
+               <div class="mt-auto border-t border-slate-200 dark:border-slate-700 pt-4 flex items-center justify-between">
+                 <div class="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                 <i class="fas fa-lock text-xl doc-lock"></i>
+               </div>
+             </div>
+             <div class="absolute bottom-8 bg-green-500 text-white px-4 py-2 rounded-full font-bold text-xs shadow-lg transform scale-0 group-hover:scale-100 transition-transform delay-200 flex items-center">
+               <i class="fas fa-check mr-2"></i> SIGNATURE VERIFIED
+             </div>
+          </div>
+        </div>
+        <div class="w-full md:w-1/2 space-y-4">
+          <div class="flex items-center space-x-3 mb-2">
+            <div class="p-2 bg-green-100 dark:bg-cyber-green/20 rounded-lg text-green-600 dark:text-cyber-green"><i class="fas fa-file-contract text-xl"></i></div>
+            <h3 class="text-2xl font-bold font-mono text-slate-800 dark:text-white">Document Authenticity</h3>
+          </div>
+          <p class="text-slate-600 dark:text-gray-300 leading-relaxed">
+            Verify official documents instantly. Our secure scan checks digital signatures and metadata, unlocking the document only when verified.
+          </p>
+          <ul class="space-y-2">
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Digital Signature Check</li>
+            <li class="flex items-center text-sm text-slate-500 dark:text-gray-400"><i class="fas fa-check-circle text-green-500 mr-2"></i> Metadata Verification</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="result-section" class="hidden max-w-4xl mx-auto glass-card rounded-2xl p-8 border-l-4 border-l-blue-500 dark:border-l-cyber-blue relative overflow-hidden transition-colors duration-300 mb-10">
+      <div class="absolute top-0 right-0 w-64 h-64 bg-blue-100/50 dark:bg-cyber-blue/5 rounded-full blur-3xl -z-10"></div>
+      <div class="flex justify-between items-start mb-6">
+        <div><h2 class="text-2xl font-mono font-bold text-slate-900 dark:text-white mb-1">ANALYSIS REPORT</h2><p class="text-slate-500 dark:text-gray-400 font-mono text-xs uppercase tracking-wider" id="result-file-info">ID: 8X-2993</p></div>
+        <button class="text-slate-400 hover:text-slate-700 dark:text-gray-500 dark:hover:text-white" onclick="closeResult()"><i class="fas fa-times text-lg"></i></button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div class="flex flex-col items-center justify-center relative">
+          <svg class="w-32 h-32 transform -rotate-90"><circle class="text-slate-200/50 dark:text-gray-800" stroke-width="6" stroke="currentColor" fill="transparent" r="50" cx="64" cy="64" /><circle id="progress-ring" class="text-blue-500 dark:text-cyber-blue progress-ring__circle" stroke-width="6" stroke-linecap="round" stroke="currentColor" fill="transparent" r="50" cx="64" cy="64" stroke-dasharray="314" stroke-dashoffset="314" /></svg>
+          <div class="absolute flex flex-col items-center"><span class="text-2xl font-mono font-bold text-slate-800 dark:text-white" id="confidence-score">0%</span><span class="text-[10px] text-slate-500 dark:text-gray-400 uppercase tracking-widest">Confidence</span></div>
+        </div>
+        <div class="md:col-span-2">
+          <div id="result-status" class="mb-4 p-3 rounded-lg bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 transition-colors"></div>
+          <div class="space-y-3">
+            <h4 class="font-mono text-blue-600 dark:text-cyber-blue text-xs uppercase tracking-wider border-b border-slate-200 dark:border-gray-800 pb-1">Technical Findings</h4>
+            <div id="result-details" class="text-slate-600 dark:text-gray-300 text-xs leading-relaxed"></div>
+            <button class="w-full border border-slate-300 dark:border-gray-600 text-slate-600 dark:text-gray-300 font-bold py-2 rounded-lg hover:bg-slate-100 dark:hover:border-gray-400 transition-colors text-xs uppercase tracking-wide mt-4" onclick="closeResult()">Scan Another</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-dashboard" class="page-section hidden animate-fade-in"><div class="max-w-6xl mx-auto"><h2 class="text-3xl font-mono font-bold text-slate-900 dark:text-white mb-6">LIVE <span class="text-blue-600 dark:text-cyber-blue">STATS</span></h2><div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"><div class="glass-card p-6 rounded-2xl flex flex-col"><span class="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2 font-bold">Total Scans</span><span class="text-3xl font-bold text-slate-800 dark:text-white">12,403</span><span class="text-xs text-green-600 mt-2 font-bold"><i class="fas fa-arrow-up"></i> +12% this week</span></div><div class="glass-card p-6 rounded-2xl flex flex-col"><span class="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2 font-bold">Fakes Detected</span><span class="text-3xl font-bold text-red-500">4,192</span><span class="text-xs text-slate-500 mt-2 font-medium">33% Detection Rate</span></div><div class="glass-card p-6 rounded-2xl flex flex-col"><span class="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2 font-bold">API Calls</span><span class="text-3xl font-bold text-blue-600 dark:text-cyber-blue">89.2k</span><span class="text-xs text-green-600 mt-2 font-bold"><i class="fas fa-arrow-up"></i> Stable</span></div><div class="glass-card p-6 rounded-2xl flex flex-col"><span class="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-2 font-bold">Server Load</span><div class="w-full bg-slate-200 dark:bg-white/10 rounded-full h-2 mt-2 mb-2"><div class="bg-green-500 h-2 rounded-full" style="width: 45%"></div></div><span class="text-xs text-green-600 font-bold">Optimal (45%)</span></div></div><div class="glass-card p-6 rounded-2xl h-80 flex items-center justify-center border-dashed border-2 border-slate-300 dark:border-white/10"><div class="text-center text-slate-400 dark:text-gray-500"><i class="fas fa-chart-area text-5xl mb-4 opacity-50"></i><p class="font-mono text-sm tracking-widest">TRAFFIC ANALYSIS VISUALIZATION</p></div></div></div></section>
+  
+  <section id="page-history" class="page-section hidden animate-fade-in"><div class="max-w-6xl mx-auto"><h2 class="text-3xl font-mono font-bold text-slate-900 dark:text-white mb-6">SCAN <span class="text-purple-600 dark:text-cyber-purple">HISTORY</span></h2><div class="glass-card rounded-2xl overflow-hidden p-0"><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50/50 dark:bg-white/5 text-slate-600 dark:text-gray-400 text-xs uppercase border-b border-slate-200 dark:border-white/10"><th class="p-5 font-mono">Date</th><th class="p-5 font-mono">File Name</th><th class="p-5 font-mono">Type</th><th class="p-5 font-mono">Status</th><th class="p-5 font-mono">Confidence</th><th class="p-5 font-mono">Action</th></tr></thead><tbody class="text-sm text-slate-700 dark:text-gray-300 divide-y divide-slate-200 dark:divide-white/5"><tr class="hover:bg-blue-50/30 dark:hover:bg-white/5 transition-colors"><td class="p-5 font-medium">Oct 24, 10:42 AM</td><td class="p-5 font-bold">interview_clip.mp4</td><td class="p-5"><i class="fas fa-film mr-2 text-purple-500"></i> Video</td><td class="p-5"><span class="px-3 py-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold border border-red-200 dark:border-red-500/30">FAKE</span></td><td class="p-5 font-mono">98.2%</td><td class="p-5"><button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs font-bold">REPORT <i class="fas fa-arrow-right ml-1"></i></button></td></tr><tr class="hover:bg-blue-50/30 dark:hover:bg-white/5 transition-colors"><td class="p-5 font-medium">Oct 23, 04:15 PM</td><td class="p-5 font-bold">contract_v2.pdf</td><td class="p-5"><i class="fas fa-file-contract mr-2 text-green-500"></i> Doc</td><td class="p-5"><span class="px-3 py-1 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-500/30">SAFE</span></td><td class="p-5 font-mono">99.9%</td><td class="p-5"><button class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs font-bold">REPORT <i class="fas fa-arrow-right ml-1"></i></button></td></tr></tbody></table></div></div></div></section>
+  
+  <section id="page-help" class="page-section hidden animate-fade-in"><div class="max-w-4xl mx-auto"><h2 class="text-3xl font-mono font-bold text-slate-900 dark:text-white mb-6">HOW IT <span class="text-green-600 dark:text-cyber-green">WORKS</span></h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="glass-card p-8 rounded-2xl"><div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-cyber-blue/20 flex items-center justify-center text-blue-600 dark:text-cyber-blue font-bold mb-4 text-xl border border-blue-200 dark:border-cyber-blue/40">1</div><h3 class="font-bold text-xl mb-3 text-slate-800 dark:text-white">Upload Media</h3><p class="text-sm text-slate-600 dark:text-gray-400 leading-relaxed">Drag and drop your suspicious image, video, or document into the respective analysis card. We support most standard formats up to 100MB.</p></div><div class="glass-card p-8 rounded-2xl"><div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-cyber-purple/20 flex items-center justify-center text-purple-600 dark:text-cyber-purple font-bold mb-4 text-xl border border-purple-200 dark:border-cyber-purple/40">2</div><h3 class="font-bold text-xl mb-3 text-slate-800 dark:text-white">AI Analysis</h3><p class="text-sm text-slate-600 dark:text-gray-400 leading-relaxed">Our multi-layered neural networks scan for compression artifacts, metadata inconsistencies, and unnatural pixel patterns.</p></div><div class="glass-card p-8 rounded-2xl"><div class="w-12 h-12 rounded-full bg-green-100 dark:bg-cyber-green/20 flex items-center justify-center text-green-600 dark:text-cyber-green font-bold mb-4 text-xl border border-green-200 dark:border-cyber-green/40">3</div><h3 class="font-bold text-xl mb-3 text-slate-800 dark:text-white">Get Results</h3><p class="text-sm text-slate-600 dark:text-gray-400 leading-relaxed">Receive an instant report with a confidence score. Green indicates authenticity, while Red highlights potential manipulation.</p></div><div class="glass-card p-8 rounded-2xl"><div class="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold mb-4 text-xl border border-orange-200 dark:border-orange-500/40">4</div><h3 class="font-bold text-xl mb-3 text-slate-800 dark:text-white">API Integration</h3><p class="text-sm text-slate-600 dark:text-gray-400 leading-relaxed">Developers can use our secure REST API to integrate deepfake detection directly into their applications and workflows.</p></div></div></div></section>
+
+  <section id="page-about" class="page-section hidden animate-fade-in"><div class="max-w-4xl mx-auto text-center"><h2 class="text-3xl font-mono font-bold text-slate-900 dark:text-white mb-6">OUR <span class="text-blue-600 dark:text-cyber-blue">MISSION</span></h2><div class="glass-card p-10 rounded-2xl mb-8 text-left"><p class="text-slate-700 dark:text-gray-300 leading-relaxed mb-6 text-lg font-medium">DeepFake Security Systems was founded with a single goal: to restore trust in digital media. As AI generation tools become more accessible, the line between reality and fabrication blurs.</p><p class="text-slate-700 dark:text-gray-300 leading-relaxed text-lg font-medium">Our team of researchers and engineers build state-of-the-art detection models that evolve alongside generative AI, ensuring that individuals and organizations can verify the authenticity of the content they consume.</p></div><div class="flex justify-center space-x-8"><a href="#" class="text-slate-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-cyber-blue text-3xl transition-colors"><i class="fab fa-github"></i></a><a href="#" class="text-slate-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-cyber-blue text-3xl transition-colors"><i class="fab fa-twitter"></i></a><a href="#" class="text-slate-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-cyber-blue text-3xl transition-colors"><i class="fab fa-linkedin"></i></a></div></div></section>
+
+</main>
+
+<footer class="border-t border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-md py-6 mt-auto transition-colors duration-300">
+  <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-[10px] text-slate-500 dark:text-gray-500">
+    <div class="flex items-center space-x-2 mb-2 md:mb-0"><i class="fas fa-shield-halved text-slate-400 dark:text-gray-600"></i><span class="font-mono tracking-wider">DEEPFAKE SECURITY SYSTEMS © 2026</span></div>
+    <div class="flex space-x-4"><a href="#" class="hover:text-blue-600 dark:hover:text-cyber-blue transition-colors">PRIVACY</a><a href="#" class="hover:text-blue-600 dark:hover:text-cyber-blue transition-colors">TERMS</a><a href="#" class="hover:text-blue-600 dark:hover:text-cyber-blue transition-colors">STATUS: <span class="text-green-600 dark:text-cyber-green">ONLINE</span></a></div>
+  </div>
+</footer>
+
+<script>
+  // Auth & Nav Logic
+  function toggleAuthModal() { document.getElementById('auth-modal').classList.toggle('hidden'); }
+  function switchAuthTab(tab) {
+    const l = document.getElementById('tab-login'), s = document.getElementById('tab-signup'), fl = document.getElementById('form-login'), fs = document.getElementById('form-signup');
+    if(tab==='login'){ l.classList.replace('text-slate-400','text-blue-600'); l.classList.add('border-b-2'); s.classList.replace('text-blue-600','text-slate-400'); s.classList.remove('border-b-2'); fl.classList.remove('hidden'); fs.classList.add('hidden'); }
+    else { s.classList.replace('text-slate-400','text-blue-600'); s.classList.add('border-b-2'); l.classList.replace('text-blue-600','text-slate-400'); l.classList.remove('border-b-2'); fs.classList.remove('hidden'); fl.classList.add('hidden'); }
+  }
+  function handleLogin(e) { e.preventDefault(); toggleAuthModal(); document.getElementById('btn-login-trigger').classList.add('hidden'); document.getElementById('user-menu').classList.remove('hidden'); document.getElementById('user-menu').classList.add('flex'); }
+  function handleLogout() { document.getElementById('btn-login-trigger').classList.remove('hidden'); document.getElementById('user-menu').classList.add('hidden'); document.getElementById('user-menu').classList.remove('flex'); }
+  function navigateTo(pageId) { document.querySelectorAll('.page-section').forEach(el=>el.classList.add('hidden')); const t=document.getElementById(`page-${pageId}`); if(t)t.classList.remove('hidden'); document.querySelectorAll('.nav-link').forEach(b=>{b.classList.remove('active'); if(b.textContent.toLowerCase()===pageId)b.classList.add('active');}); if(pageId!=='home')closeResult(); document.getElementById('mobile-menu').classList.add('hidden'); }
+  function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('hidden'); }
+  
+  // Theme & Particles
+  function toggleTheme() { document.documentElement.classList.toggle('dark'); localStorage.theme=document.documentElement.classList.contains('dark')?'dark':'light'; animateParticles(); }
+  if(localStorage.theme==='dark') document.documentElement.classList.add('dark');
+  const canvas=document.getElementById('bg-canvas'), ctx=canvas.getContext('2d'); let width,height,particles=[];
+  const icons=['\uf030','\uf008','\uf1c1','\uf022','\uf02e','\uf0c6','\uf56e','\uf390'];
+  function resize(){width=canvas.width=window.innerWidth;height=canvas.height=window.innerHeight;}
+  class Particle{constructor(){this.reset();this.y=Math.random()*height}reset(){this.x=Math.random()*width;this.y=height+50;this.speed=Math.random()*0.5+0.2;this.size=Math.random()*14+10;this.icon=icons[Math.floor(Math.random()*icons.length)];this.opacity=Math.random()*0.4+0.2;this.rotation=Math.random()*360;this.rotSpeed=(Math.random()-0.5)*0.5}update(){this.y-=this.speed;this.rotation+=this.rotSpeed;if(this.y<-50)this.reset()}draw(){ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.rotation*Math.PI/180);ctx.globalAlpha=this.opacity;ctx.fillStyle=document.documentElement.classList.contains('dark')?'#60a5fa':'#475569';ctx.font=`900 ${this.size}px "Font Awesome 6 Free"`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(this.icon,0,0);ctx.restore()}}
+  function initParticles(){particles=[];const c=window.innerWidth<768?20:50;for(let i=0;i<c;i++)particles.push(new Particle())}
+  function animateParticles(){ctx.clearRect(0,0,width,height);particles.forEach(p=>{p.update();p.draw()});requestAnimationFrame(animateParticles)}
+  window.addEventListener('resize',()=>{resize();initParticles()});resize();initParticles();animateParticles();
+
+  // Typing & Analysis
+  const phrases=["AI-Powered Detection","Secure Your Identity","Analyze Instantly","Deepfake Defense"]; let pi=0,ci=0,isDel=false;
+  function typeEffect(){const cp=phrases[pi];document.getElementById('typing-text').textContent=cp.substring(0,isDel?ci-1:ci+1);ci+=isDel?-1:1;let sp=isDel?30:50;if(!isDel&&ci===cp.length){sp=2000;isDel=true}else if(isDel&&ci===0){isDel=false;pi=(pi+1)%phrases.length;sp=500}setTimeout(typeEffect,sp)} setTimeout(typeEffect,1000);
+  
+  let selectedFiles={image:null,video:null,document:null};
+  ['image','video','document'].forEach(t=>{const i=document.getElementById(`${t}-file`);i.addEventListener('change',e=>handleFileSelect(e.target.files[0],t))});
+  function handleFileSelect(f,t){if(!f)return;if(f.size>1e8)return alert('Max 100MB');selectedFiles[t]=f;document.getElementById(`${t}-preview`).classList.remove('hidden');document.getElementById(`${t}-name`).textContent=f.name;}
+  function clearFile(t,e){e.stopPropagation();selectedFiles[t]=null;document.getElementById(`${t}-preview`).classList.add('hidden');document.getElementById(`${t}-file`).value='';}
+  function analyzeContent(t){if(!selectedFiles[t])return alert('Select file');document.getElementById('scanning-overlay').classList.remove('hidden');document.getElementById('result-section').classList.add('hidden');setTimeout(()=>{document.getElementById('scanning-overlay').classList.add('hidden');generateResult(t)},2500);}
+  function generateResult(t){const isFake=Math.random()>0.4,conf=Math.floor(Math.random()*20)+80,isDark=document.documentElement.classList.contains('dark');
+  const c=document.getElementById('progress-ring'),r=c.r.baseVal.value,circ=r*2*Math.PI,off=circ-(conf/100)*circ;
+  c.style.strokeDashoffset=circ;setTimeout(()=>c.style.strokeDashoffset=off,100);
+  const col=isFake?'#ef4444':(isDark?'#0aff60':'#10b981'),txt=isFake?'DEEPFAKE DETECTED':'AUTHENTIC MEDIA',st=isFake?'HIGH PROBABILITY OF MANIPULATION':'CONTENT APPEARS AUTHENTIC',ic=isFake?'fa-triangle-exclamation':'fa-circle-check';
+  c.style.color=col;document.getElementById('confidence-score').textContent=`${conf}%`;document.getElementById('confidence-score').style.color=col;document.getElementById('result-file-info').textContent=`${t.toUpperCase()} ANALYSIS // ${selectedFiles[t].name}`;
+  document.getElementById('result-status').innerHTML=`<div class="flex items-center"><div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background:${col}20;border:1px solid ${col}60"><i class="fas ${ic} text-lg" style="color:${col}"></i></div><div><h3 class="font-bold text-sm" style="color:${isDark?col:(isFake?'#dc2626':'#059669')}">${txt}</h3><p class="text-[10px] text-slate-500 dark:text-gray-400 font-mono">${st}</p></div></div>`;
+  document.getElementById('result-details').innerHTML=isFake?`<ul class="list-disc list-inside space-y-1 text-slate-500 dark:text-gray-400"><li><span class="text-red-500 dark:text-cyber-red">Metadata Mismatch:</span> Encoding timestamps invalid.</li><li><span class="text-red-500 dark:text-cyber-red">Artifacts:</span> Inconsistent noise in Region 4.</li><li><span class="text-red-500 dark:text-cyber-red">AI Signature:</span> Match found (Model-X4).</li></ul>`:`<ul class="list-disc list-inside space-y-1 text-slate-500 dark:text-gray-400"><li><span class="text-green-600 dark:text-cyber-green">Integrity:</span> Metadata consistent.</li><li><span class="text-green-600 dark:text-cyber-green">Noise:</span> Sensor distribution uniform.</li><li><span class="text-green-600 dark:text-cyber-green">Clean:</span> No synthesis traces found.</li></ul>`;
+  document.getElementById('result-section').classList.remove('hidden');document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'center'});}
+  function closeResult(){document.getElementById('result-section').classList.add('hidden');}
+</script>
+</body>
+</html>
