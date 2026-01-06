@@ -1,9 +1,9 @@
-fastapi
-uvicorn
-opencv-python
-numpy
-pillow
-dlib
-exifread
+FastAPI: Build high-performance web APIs with Python.
+Uvicorn: Fast ASGI server to run FastAPI apps.
+OpenCV: Advanced computer vision and image processing tools
+NumPy: Efficiently process images as multi-dimensional arrays.
+Pillow: Simple image loading, resizing, and format handling.
+Dlib: Detect faces and facial landmark points accurately.
+ExifRead: Extract camera metadata to verify image origin.
+Scikit-Image: Analyze textures and noise for digital forgeries.
 matplotlib
-scikit-image
